@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.pyc
+
+# Virtual env
+venv/
+.env/
+
+# Database
+*.db
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Frontend test files
+*.html
