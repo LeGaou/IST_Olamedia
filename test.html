@@ -1,0 +1,687 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>OlaMedia - AI Media Recommendations</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          "Helvetica Neue", Arial, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        color: #333;
+      }
+
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+
+      header {
+        text-align: center;
+        padding: 40px 20px;
+        color: white;
+      }
+
+      header h1 {
+        font-size: 3rem;
+        font-weight: 700;
+        margin-bottom: 10px;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+      }
+
+      header p {
+        font-size: 1.2rem;
+        opacity: 0.9;
+      }
+
+      .nav-tabs {
+        display: flex;
+        justify-content: center;
+        gap: 10px;
+        margin-bottom: 30px;
+        flex-wrap: wrap;
+      }
+
+      .nav-tab {
+        padding: 12px 30px;
+        background: rgba(255, 255, 255, 0.2);
+        border: none;
+        border-radius: 30px;
+        color: white;
+        font-size: 1rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        backdrop-filter: blur(10px);
+      }
+
+      .nav-tab:hover {
+        background: rgba(255, 255, 255, 0.3);
+        transform: translateY(-2px);
+      }
+
+      .nav-tab.active {
+        background: white;
+        color: #667eea;
+        font-weight: 600;
+      }
+
+      .section {
+        display: none;
+        animation: fadeIn 0.4s ease;
+      }
+
+      .section.active {
+        display: block;
+      }
+
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .ai-section {
+        background: white;
+        border-radius: 20px;
+        padding: 30px;
+        margin-top: 30px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+      }
+
+      .ai-section h2 {
+        color: #667eea;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .ai-input-group {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 20px;
+      }
+
+      .ai-input {
+        flex: 1;
+        padding: 15px 20px;
+        border: 2px solid #e0e0e0;
+        border-radius: 10px;
+        font-size: 1rem;
+        transition: border-color 0.3s;
+      }
+
+      .ai-input:focus {
+        outline: none;
+        border-color: #667eea;
+      }
+
+      .btn {
+        padding: 15px 30px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        border-radius: 10px;
+        font-size: 1rem;
+        cursor: pointer;
+        transition:
+          transform 0.2s,
+          box-shadow 0.2s;
+        font-weight: 600;
+      }
+
+      .btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+      }
+
+      .btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+      }
+
+      .recommendations {
+        background: #f8f9fa;
+        border-radius: 15px;
+        padding: 25px;
+        border-left: 4px solid #667eea;
+      }
+
+      .recommendations h3 {
+        color: #333;
+        margin-bottom: 15px;
+      }
+
+      .rec-content {
+        line-height: 1.8;
+        color: #555;
+        white-space: pre-line;
+      }
+
+      .loading {
+        display: inline-block;
+        width: 20px;
+        height: 20px;
+        border: 3px solid rgba(255, 255, 255, 0.3);
+        border-radius: 50%;
+        border-top-color: white;
+        animation: spin 1s ease-in-out infinite;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 25px;
+      }
+
+      .card {
+        background: white;
+        border-radius: 20px;
+        overflow: hidden;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        transition:
+          transform 0.3s,
+          box-shadow 0.3s;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15);
+      }
+
+      .card-image {
+        width: 100%;
+        height: 200px;
+        object-fit: cover;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      }
+
+      .card-content {
+        padding: 25px;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: start;
+        margin-bottom: 10px;
+      }
+
+      .card-title {
+        font-size: 1.3rem;
+        font-weight: 700;
+        color: #333;
+        margin-bottom: 5px;
+      }
+
+      .card-genre {
+        display: inline-block;
+        padding: 5px 12px;
+        background: #f0f0f0;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        color: #666;
+        margin-bottom: 10px;
+      }
+
+      .card-rating {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        font-weight: 700;
+        color: #f39c12;
+      }
+
+      .card-rating::before {
+        content: "★";
+        color: #f39c12;
+      }
+
+      .card-description {
+        color: #666;
+        line-height: 1.6;
+        flex: 1;
+        margin-top: 10px;
+      }
+
+      .add-form {
+        background: white;
+        border-radius: 20px;
+        padding: 30px;
+        margin-bottom: 30px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+      }
+
+      .form-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 20px;
+        margin-bottom: 20px;
+      }
+
+      .form-group {
+        display: flex;
+        flex-direction: column;
+      }
+
+      .form-group label {
+        margin-bottom: 8px;
+        color: #555;
+        font-weight: 600;
+        font-size: 0.9rem;
+      }
+
+      .form-group input,
+      .form-group textarea {
+        padding: 12px 15px;
+        border: 2px solid #e0e0e0;
+        border-radius: 10px;
+        font-size: 1rem;
+        transition: border-color 0.3s;
+      }
+
+      .form-group input:focus,
+      .form-group textarea:focus {
+        outline: none;
+        border-color: #667eea;
+      }
+
+      .form-group textarea {
+        min-height: 100px;
+        resize: vertical;
+      }
+
+      .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        color: white;
+      }
+
+      .empty-state h3 {
+        font-size: 1.5rem;
+        margin-bottom: 10px;
+      }
+
+      .error-message {
+        background: #fee;
+        color: #c33;
+        padding: 15px;
+        border-radius: 10px;
+        margin-bottom: 20px;
+        border-left: 4px solid #c33;
+      }
+
+      .success-message {
+        background: #efe;
+        color: #3c3;
+        padding: 15px;
+        border-radius: 10px;
+        margin-bottom: 20px;
+        border-left: 4px solid #3c3;
+      }
+
+      .hidden {
+        display: none;
+      }
+
+      @media (max-width: 768px) {
+        header h1 {
+          font-size: 2rem;
+        }
+
+        .grid {
+          grid-template-columns: 1fr;
+        }
+
+        .ai-input-group {
+          flex-direction: column;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <h1>🎬 OlaMedia</h1>
+        <p>AI-Powered Media Discovery</p>
+      </header>
+
+      <div class="nav-tabs">
+        <button class="nav-tab active" onclick="switchTab('movies')">
+          🎬 Movies
+        </button>
+        <button class="nav-tab" onclick="switchTab('books')">📚 Books</button>
+        <button class="nav-tab" onclick="switchTab('music')">🎵 Music</button>
+      </div>
+
+      <div id="message-container"></div>
+
+      <!-- Movies Section -->
+      <div id="movies" class="section active">
+        <div class="grid" id="movies-grid">
+          <div class="empty-state">
+            <h3>Loading movies...</h3>
+          </div>
+        </div>
+      </div>
+
+      <!-- Books Section -->
+      <div id="books" class="section">
+        <div class="grid" id="books-grid">
+          <div class="empty-state">
+            <h3>Loading books...</h3>
+          </div>
+        </div>
+      </div>
+
+      <!-- Music Section -->
+      <div id="music" class="section">
+        <div class="grid" id="music-grid">
+          <div class="empty-state">
+            <h3>Loading music...</h3>
+          </div>
+        </div>
+      </div>
+
+      <!-- AI Recommendations Section -->
+      <div class="ai-section">
+        <h2>
+          <span>🤖</span>
+          AI Recommendations
+        </h2>
+        <div class="ai-input-group">
+          <input
+            type="text"
+            id="preference-input"
+            class="ai-input"
+            placeholder="Enter your preference (e.g., sci-fi, romance, thriller...)"
+          />
+          <button class="btn" id="recommend-btn" onclick="getRecommendations()">
+            Get Recommendations
+          </button>
+        </div>
+        <div class="ai-section">
+          <h2>⭐ Your Ratings</h2>
+          <div id="ratings-list">Loading...</div>
+        </div>
+        <div id="recommendations-result" class="hidden">
+          <div class="recommendations">
+            <h3>Recommended for You</h3>
+            <div class="rec-content" id="rec-content"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const API_BASE = "http://127.0.0.1:5000/api";
+
+      let currentTab = "movies";
+
+      document.addEventListener("DOMContentLoaded", () => {
+        loadAllData();
+        loadUserRatings();
+      });
+
+      function switchTab(tab) {
+        currentTab = tab; // 👈 THIS FIXES EVERYTHING
+
+        document.querySelectorAll(".nav-tab").forEach((btn) => {
+          btn.classList.remove("active");
+        });
+        event.target.classList.add("active");
+
+        document.querySelectorAll(".section").forEach((section) => {
+          section.classList.remove("active");
+        });
+        document.getElementById(tab).classList.add("active");
+      }
+
+      async function loadAllData() {
+        await Promise.all([
+          loadMedia("movies"),
+          loadMedia("books"),
+          loadMedia("music"),
+        ]);
+      }
+
+      async function loadMedia(type) {
+        try {
+          const response = await fetch(`${API_BASE}/${type}`);
+          const data = await response.json();
+
+          // ✅ FIX: supports both backend formats
+          const items = Array.isArray(data) ? data : data.data;
+
+          renderGrid(type, items);
+        } catch (error) {
+          showError(`Error loading ${type}: ${error.message}`);
+        }
+      }
+
+      function renderGrid(type, items) {
+        const grid = document.getElementById(`${type}-grid`);
+
+        if (!items || items.length === 0) {
+          grid.innerHTML = `
+            <div class="empty-state" style="grid-column: 1 / -1;">
+              <h3>No ${type} found</h3>
+            </div>
+          `;
+          return;
+        }
+
+        grid.innerHTML = items
+          .map(
+            (item) => `
+      <div class="card">
+        <img src="${item.image_dir || "/static/images/placeholder.jpg"}"
+             class="card-image">
+        <div class="card-content">
+          <div class="card-header">
+            <div>
+              <div class="card-title">${escapeHtml(item.name)}</div>
+              <span class="card-genre">${escapeHtml(item.genre)}</span>
+            </div>
+            <div class="card-rating">${item.rating}/10</div>
+          </div>
+
+          <div class="card-description">${escapeHtml(item.description)}</div>
+
+          <!-- ⭐ NEW BUTTON -->
+          <button class="btn" style="margin-top: 15px;"
+            onclick="rateItem('${type === "music" ? "music" : type.slice(0, -1)}', ${item.id})">
+            ⭐ Rate
+          </button>
+        </div>
+      </div>
+        `,
+          )
+          .join("");
+      }
+
+      async function getRecommendations() {
+        const input = document.getElementById("preference-input");
+        const btn = document.getElementById("recommend-btn");
+        const resultDiv = document.getElementById("recommendations-result");
+        const contentDiv = document.getElementById("rec-content");
+
+        const preference = input.value.trim();
+        if (!preference) {
+          showError("Enter a preference");
+          return;
+        }
+
+        btn.disabled = true;
+        btn.textContent = "Loading...";
+        resultDiv.classList.add("hidden");
+
+        try {
+          const response = await fetch(`${API_BASE}/recommend`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ preferences: preference, type: currentTab }),
+          });
+
+          const data = await response.json();
+
+          // ✅ supports both formats
+          contentDiv.textContent =
+            data.data || data.recommendations?.raw || "No results";
+
+          resultDiv.classList.remove("hidden");
+        } catch (error) {
+          showError(error.message);
+        } finally {
+          btn.disabled = false;
+          btn.textContent = "Get Recommendations";
+        }
+      }
+
+      function showError(message) {
+        const container = document.getElementById("message-container");
+        container.innerHTML = `<div class="error-message">${escapeHtml(message)}</div>`;
+        setTimeout(() => (container.innerHTML = ""), 4000);
+      }
+
+      function showSuccess(message) {
+        const container = document.getElementById("message-container");
+        container.innerHTML = `<div class="success-message">${escapeHtml(message)}</div>`;
+        setTimeout(() => (container.innerHTML = ""), 4000);
+      }
+
+      function escapeHtml(text) {
+        if (!text) return "";
+        const div = document.createElement("div");
+        div.textContent = text;
+        return div.innerHTML;
+      }
+
+      document
+        .getElementById("preference-input")
+        ?.addEventListener("keypress", (e) => {
+          if (e.key === "Enter") getRecommendations();
+        });
+
+      async function rateItem(type, id) {
+        const score = prompt("Enter rating (0–10):");
+
+        if (!score) return;
+
+        try {
+          const res = await fetch(`${API_BASE}/ratings`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              media_type: type,
+              media_id: id,
+              score: score,
+              user_id: "john",
+            }),
+          });
+
+          const data = await res.json();
+
+          if (res.ok) {
+            showSuccess("Rating saved ✅");
+
+            // refresh ratings section
+            loadUserRatings();
+
+            // reload current tab
+            loadMedia(currentTab);
+          } else {
+            showError(data.error || "Failed to save rating");
+          }
+        } catch (err) {
+          showError(err.message);
+        }
+      }
+      async function loadUserRatings() {
+        try {
+          const res = await fetch(`${API_BASE}/user_ratings?user_id=john`);
+          const data = await res.json();
+
+          const container = document.getElementById("ratings-list");
+
+          if (!data.length) {
+            container.innerHTML = "No ratings yet.";
+            return;
+          }
+
+          container.innerHTML = data
+            .map(
+              (r) => `
+        <div style="margin-bottom:10px;">
+          🎬 <strong>${r.name}</strong> (${r.type})
+          — ⭐ ${r.score}/10
+
+          <button
+            style="margin-left:10px; padding:5px 10px; cursor:pointer;"
+            onclick="deleteRating('${r.type}', ${r.media_id})"
+          >
+            ❌
+          </button>
+        </div>
+      `,
+            )
+            .join("");
+        } catch (err) {
+          showError("Failed to load ratings");
+        }
+      }
+
+      async function deleteRating(type, id) {
+        if (!confirm("Delete this rating?")) return;
+
+        try {
+          const res = await fetch(`${API_BASE}/ratings/${type}/${id}/john`, {
+            method: "DELETE",
+          });
+
+          const data = await res.json();
+
+          if (res.ok) {
+            showSuccess("Rating deleted 🗑️");
+
+            loadUserRatings();
+            loadMedia(currentTab);
+          } else {
+            showError(data.error || "Failed to delete");
+          }
+        } catch (err) {
+          showError(err.message);
+        }
+      }
+    </script>
+  </body>
+</html>
