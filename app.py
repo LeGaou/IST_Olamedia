@@ -6,24 +6,46 @@ cache = {}
 # ─── AI SERVICE ───────────────────────────────
 
 class AIService:
-    def get_recommendations(self, preferences, media_type):
-        prompt = f"""
-List 3 popular {media_type}.
+    def get_recommendations(self, preferences, media_type, rated_text):
 
-Format exactly:
-1. Name - because you like {preferences}
-2. Name - because you like {preferences}
-3. Name - because you like {preferences}
+        if rated_text != "None":
+            prompt = f"""
+Recommend exactly 3 {media_type}.
+
+User preference: {preferences}
+
+User liked these:
+{rated_text}
 
 Rules:
-- Only 3 lines
-- No extra text
+- Recommend similar items
+- DO NOT include any of the liked items above
+- ONLY return a numbered list
+- Each line must follow this EXACT format:
+
+1. Movie Name - because it is similar to [rated item or preference]
+
+No extra text.
+"""
+        else:
+            prompt = f"""
+Recommend exactly 3 {media_type}.
+
+User preference: {preferences}
+
+Rules:
+- ONLY return a numbered list
+- Each line must follow this EXACT format:
+
+1. Movie Name - because you like {preferences}
+
+No extra text.
 """
 
         response = ollama.chat(
             model="llama3:8b",
             messages=[{'role': 'user', 'content': prompt}],
-            options={"num_predict": 60, "temperature": 0.2}
+            options={"num_predict": 150, "temperature": 0.2}
         )
 
         return response['message']['content']
@@ -57,11 +79,39 @@ def health():
 
 @app.route('/api/recommend', methods=['POST'])
 def recommend():
+    import re
+
     data = request.json
     preferences = data.get("preferences", "")
     media_type = data.get("type", "movies")
+    user_id = data.get("user_id", "john")
 
-    key = f"{preferences}-{media_type}"
+    conn = get_db_connection()
+
+    rows = conn.execute("""
+        SELECT media_type, media_id, score
+        FROM user_ratings
+        WHERE user_id = ? AND score >= 7
+    """, (user_id,)).fetchall()
+
+    rated_items = []
+
+    for r in rows:
+        table = MEDIA_TABLE_MAP[r["media_type"]]
+        item = conn.execute(
+            f"SELECT name FROM {table} WHERE id=?",
+            (r["media_id"],)
+        ).fetchone()
+
+        if item:
+            rated_items.append(f"{item['name']} ({r['score']}/10)")
+
+    conn.close()
+
+    rated_text = "\n".join(rated_items)
+    has_ratings = len(rated_items) > 0
+
+    key = f"{preferences}-{media_type}-{rated_text}"
 
     # ⚡ CACHE CHECK
     if key in cache:
@@ -70,22 +120,56 @@ def recommend():
             "data": cache[key]
         })
 
-    # 🔥 CALL AI (simple + stable)
+    # 🔥 CALL AI
     result = ai.get_recommendations(
         preferences,
-        media_type
+        media_type,
+        rated_text if has_ratings else "None"
     )
 
-    # 🧼 FORCE CLEAN OUTPUT (NO YAPPING)
-    lines = result.split("\n")
-    cleaned = []
+    # 🧪 DEBUG (optional, remove later)
+    print("RAW AI OUTPUT:\n", result)
 
-    for i, line in enumerate(lines):
-        if "-" in line:
-            name = line.split("-")[0].split(".", 1)[-1].strip()
-            cleaned.append(f"{len(cleaned)+1}. {name} - because you like {preferences}")
+    # 🧼 CLEAN OUTPUT (ROBUST)
+    lines = [l.strip() for l in result.split("\n") if l.strip()]
+    cleaned = []
+    seen = set()
+
+    for line in lines:
+        # remove numbering ONLY if at start (safe)
+        match = re.match(r"^\d+\.\s*(.*)", line)
+        if match:
+            line = match.group(1)
+
+        # ❌ skip garbage / intro lines
+        if any(x in line.lower() for x in ["here are", "recommendations", "these are"]):
+            continue
+
+        # split into name + reason
+        parts = line.split(" - ", 1)
+        name = parts[0].strip()
+        reason = parts[1].strip() if len(parts) > 1 else f"because you like {preferences}"
+
+        if not name:
+            continue
+
+        # avoid duplicates
+        if name.lower() in seen:
+            continue
+
+        seen.add(name.lower())
+        cleaned.append(f"{len(cleaned)+1}. {name} - {reason}")
+
         if len(cleaned) == 3:
             break
+
+    # ⚠️ fallback if AI output was trash
+    if not cleaned:
+        cleaned = [
+            f"1. No recommendations found - try a different preference",
+            f"2. No recommendations found - try a different preference",
+            f"3. No recommendations found - try a different preference"
+        ]
 
     result = "\n".join(cleaned)
 
