@@ -127,8 +127,6 @@ def recommend():
         rated_text if has_ratings else "None"
     )
 
-    # 🧪 DEBUG (optional, remove later)
-    print("RAW AI OUTPUT:\n", result)
 
     # 🧼 CLEAN OUTPUT (ROBUST)
     lines = [l.strip() for l in result.split("\n") if l.strip()]
