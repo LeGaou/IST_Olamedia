@@ -556,7 +556,9 @@
     <script>
       const API = "http://127.0.0.1:5000/api";
       let currentCategory = "movies";
-
+      function getType(category) {
+        return category === "music" ? "music" : category.slice(0, -1);
+      }
       function setCategory(cat) {
         currentCategory = cat;
 
@@ -586,7 +588,7 @@
             <p>${item.description}</p>
             <div class="card-footer">
               <span class="card-rating">⭐ ${item.rating}/10</span>
-              <button class="rate-btn" onclick="rate('${currentCategory.slice(0, -1)}', ${item.id})">Rate</button>
+              <button class="rate-btn" onclick="rate('${getType(currentCategory)}', ${item.id})">Rate</button>
             </div>
           `;
 
